@@ -8,21 +8,26 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 import { Image } from "expo-image";
-import { useRef, useState } from "react";
+import * as MediaLibrary from 'expo-media-library';
+import { useEffect, useRef, useState } from "react";
 import { Button, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
+  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
   const [uri, setUri] = useState<string | null>(null);
   const [mode, setMode] = useState<CameraMode>("picture");
   const [facing, setFacing] = useState<CameraType>("back");
   const [recording, setRecording] = useState(false);
 
-  if (!permission) {
-    return null;
-  }
+  useEffect(() => {
+    if (!mediaPermission) {
+      requestMediaPermission();
+    }
+  }, []);
 
+  if (!permission || !mediaPermission) return <View />;
   if (!permission.granted) {
     return (
       <View style={styles.container}>
@@ -33,11 +38,25 @@ export default function Index() {
       </View>
     );
   }
+  if (!mediaPermission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ textAlign: "center" }}>We need your permission to save photos</Text>
+        <Button onPress={requestMediaPermission} title="Grant media permission" />
+      </View>
+    );
+  }
 
   const takePicture = async () => {
     const photo = await ref.current?.takePictureAsync();
     if (photo?.uri) {
       setUri(photo.uri);
+    }
+    const asset = await MediaLibrary.createAssetAsync(photo?.uri || '');
+    if (asset) {
+      alert('Photo saved to gallery!');
+    } else {
+      alert('Failed to save photo to gallery');
     }
   };
 
